@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Robotics Quiz Bee</title>
+<style>
+  :root{
+    --bg:#f6efdc; --paper:#fffaf0; --ink:#2b2a33; --muted:#6b6658;
+    --teal:#1f8a8a; --coral:#e4572e; --mustard:#f2b632; --green:#2e9e5b; --red:#d64045;
+    --shadow:6px 6px 0 var(--ink);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg);
+    background-image:radial-gradient(rgba(43,42,51,.07) 1px,transparent 1px);
+    background-size:18px 18px;
+    color:var(--ink);
+    font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;
+    display:flex;flex-direction:column;
+  }
+  header{
+    display:flex;justify-content:space-between;align-items:center;gap:12px;
+    padding:10px 22px;border-bottom:4px solid var(--ink);background:var(--mustard);
+    font-weight:800;letter-spacing:.5px;text-transform:uppercase;font-size:clamp(13px,1.8vw,18px);
+  }
+  header .meta{font-weight:700}
+  main{flex:1;display:flex;align-items:center;justify-content:center;padding:18px}
+  .screen{display:none;width:100%;max-width:1180px}
+  .screen.active{display:block}
+
+  .card{background:var(--paper);border:4px solid var(--ink);box-shadow:var(--shadow);border-radius:14px;padding:clamp(16px,3vw,32px)}
+  h1{margin:0 0 6px;font-size:clamp(26px,5vw,46px);line-height:1.05;text-transform:uppercase}
+  .sub{color:var(--muted);margin:0 0 22px;font-size:clamp(14px,2vw,18px)}
+  h2{font-size:clamp(15px,2vw,19px);margin:20px 0 10px;text-transform:uppercase;letter-spacing:1px}
+
+  .timer-choices{display:flex;gap:14px;flex-wrap:wrap}
+  .timer-choices button{
+    flex:1;min-width:110px;padding:16px 10px;font:inherit;font-weight:800;font-size:clamp(22px,4vw,34px);
+    background:#fff;border:4px solid var(--ink);border-radius:12px;cursor:pointer;box-shadow:4px 4px 0 var(--ink);
+    transition:transform .08s, box-shadow .08s;
+  }
+  .timer-choices button:hover{transform:translate(-1px,-1px)}
+  .timer-choices button.selected{background:var(--teal);color:#fff;transform:translate(3px,3px);box-shadow:1px 1px 0 var(--ink)}
+
+  .btn{
+    font:inherit;font-weight:800;font-size:clamp(14px,2vw,19px);text-transform:uppercase;letter-spacing:.5px;
+    padding:12px 22px;border:4px solid var(--ink);border-radius:12px;cursor:pointer;background:var(--mustard);
+    box-shadow:4px 4px 0 var(--ink);transition:transform .08s, box-shadow .08s;color:var(--ink);
+  }
+  .btn:hover:not(:disabled){transform:translate(-1px,-1px)}
+  .btn:active:not(:disabled){transform:translate(3px,3px);box-shadow:1px 1px 0 var(--ink)}
+  .btn.go{background:var(--green);color:#fff}
+  .btn.show{background:var(--coral);color:#fff}
+  .btn.next{background:var(--teal);color:#fff}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .start-row{margin-top:26px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .hint{color:var(--muted);font-size:14px}
+
+  /* quiz layout: timer left, question right (landscape friendly) */
+  .quiz{display:grid;grid-template-columns:230px 1fr;gap:22px;align-items:stretch}
+  .side{display:flex;flex-direction:column;gap:14px}
+  .timerbox{
+    background:var(--ink);color:#fff;border-radius:14px;border:4px solid var(--ink);box-shadow:var(--shadow);
+    text-align:center;padding:16px 8px;
+  }
+  .timerbox .lbl{font-size:13px;letter-spacing:2px;text-transform:uppercase;color:var(--mustard);font-weight:800}
+  .timerbox .num{font-family:"Courier New",monospace;font-weight:900;font-size:clamp(64px,9vw,110px);line-height:1;font-variant-numeric:tabular-nums}
+  .timerbox.low .num{color:var(--coral)}
+  .timerbox.up{background:var(--red)}
+  .timerbox.up .num{font-size:clamp(34px,5vw,56px);padding:14px 0;color:#fff}
+  .bar{height:12px;background:#fff3;border-radius:8px;margin:10px 10px 0;overflow:hidden}
+  .bar i{display:block;height:100%;width:100%;background:var(--mustard);transform-origin:left;transition:width 1s linear}
+  .side .btn{width:100%}
+
+  .qbox .tag{display:inline-block;background:var(--teal);color:#fff;font-weight:800;border:3px solid var(--ink);border-radius:8px;padding:3px 10px;font-size:clamp(12px,1.6vw,15px);text-transform:uppercase;letter-spacing:1px}
+  .qbox .qno{float:right;font-weight:800;color:var(--muted)}
+  .qtext{font-size:clamp(20px,2.9vw,32px);font-weight:700;line-height:1.3;margin:16px 0 20px}
+  .opts{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .opt{
+    display:flex;gap:12px;align-items:center;background:#fff;border:4px solid var(--ink);border-radius:12px;
+    padding:12px 14px;font-size:clamp(17px,2.3vw,26px);font-weight:600;min-height:64px;
+  }
+  .opt b{flex:none;width:2em;height:2em;display:grid;place-items:center;background:var(--mustard);border:3px solid var(--ink);border-radius:50%;font-size:.85em}
+  .opt.correct{background:var(--green);color:#fff}
+  .opt.correct b{background:#fff;color:var(--green)}
+  .opt.dim{opacity:.4}
+  .explain{display:none;margin-top:18px;background:#e8f5ec;border:4px solid var(--green);border-radius:12px;padding:12px 16px;font-size:clamp(15px,1.9vw,21px);line-height:1.4}
+  .explain.show{display:block}
+  .explain strong{color:var(--green)}
+
+  code{font-family:"Courier New",monospace;font-weight:700;background:#2b2a33;color:#f2b632;padding:1px 7px;border-radius:6px;font-size:.9em;word-break:break-word}
+  .opt code{background:#eee8d3;color:#2b2a33}
+  .opt.correct code{background:#fff;color:var(--green)}
+  .end{text-align:center}
+  .end .big{font-size:clamp(60px,12vw,120px)}
+
+  @media (max-width:820px){
+    .quiz{grid-template-columns:1fr}
+    .side{flex-direction:row;flex-wrap:wrap}
+    .timerbox{flex:1 1 100%}
+    .side .btn{flex:1 1 30%}
+    .opts{grid-template-columns:1fr}
+  }
+  @media (max-height:520px) and (orientation:landscape){
+    header{padding:5px 16px}
+    main{padding:8px}
+    .quiz{grid-template-columns:170px 1fr;gap:12px}
+    .timerbox .num{font-size:56px}
+    .qtext{margin:8px 0 10px;font-size:19px}
+    .opt{min-height:44px;padding:6px 10px;font-size:16px}
+    .opts{gap:8px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div>Robotics Quiz Bee</div>
+  <div class="meta" id="hdrMeta">Arduino &bull; Robotics</div>
+</header>
+
+<main>
+  <!-- START SCREEN -->
+  <section class="screen active" id="screenStart">
+    <div class="card">
+      <h1>Robotics Quiz Bee</h1>
+      <p class="sub">Piezo Buzzer, I2C LCD, Servo Motor &mdash; code &amp; components &mdash; 25 questions</p>
+      <h2>Choose time per question</h2>
+      <div class="timer-choices" id="timerChoices">
+        <button data-s="30">30s</button>
+        <button data-s="60" class="selected">60s</button>
+        <button data-s="120">120s</button>
+      </div>
+      <div class="start-row">
+        <button class="btn go" id="btnStart">&#9654; Start</button>
+        <span class="hint">Tip: Space = Show Answer, then Next Question. Timer pauses automatically when the answer is shown.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- QUIZ SCREEN -->
+  <section class="screen" id="screenQuiz">
+    <div class="quiz">
+      <div class="side">
+        <div class="timerbox" id="timerBox">
+          <div class="lbl" id="timerLbl">Time left</div>
+          <div class="num" id="timerNum">60</div>
+          <div class="bar"><i id="timerBar"></i></div>
+        </div>
+        <button class="btn show" id="btnShow">Show Answer</button>
+        <button class="btn next" id="btnNext">Next Question &raquo;</button>
+      </div>
+      <div class="card qbox">
+        <span class="tag" id="partTag"></span><span class="qno" id="qNo"></span>
+        <div class="qtext" id="qText"></div>
+        <div class="opts" id="opts"></div>
+        <div class="explain" id="explain"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- END SCREEN -->
+  <section class="screen" id="screenEnd">
+    <div class="card end">
+      <div class="big">&#127942;</div>
+      <h1>Quiz Bee Complete!</h1>
+      <p class="sub">Great job, everyone. All 25 questions have been answered.</p>
+      <button class="btn go" id="btnRestart">&#8635; Play Again</button>
+    </div>
+  </section>
+</main>
+
+<script>
+const PARTS = {
+  "1": "Part I &middot; Piezo Buzzer &middot; tone() &amp; noTone()",
+  "2": "Part II &middot; I2C LCD with Arduino",
+  "3": "Part III &middot; Servo Motor"};
+
+// [part, question, [A,B,C,D], correctIndex, explanation]
+const Q = [
+ [
+  1,
+  "Which component produces sound (beeps and alarms) when Arduino sends it a signal?",
+  [
+   "Servo motor",
+   "Piezo buzzer",
+   "LDR sensor",
+   "Potentiometer"
+  ],
+  1,
+  "A piezo buzzer vibrates to make sound when it receives a voltage signal."
+ ],
+ [
+  1,
+  "Which Arduino function generates a sound of a given frequency on a pin?",
+  [
+   "<code>beep()</code>",
+   "<code>sound()</code>",
+   "<code>play()</code>",
+   "<code>tone()</code>"
+  ],
+  3,
+  "<code>tone(pin, frequency)</code> outputs a square wave to the buzzer."
+ ],
+ [
+  1,
+  "What does the code <code>noTone(8);</code> do?",
+  [
+   "Sets pin 8 as INPUT",
+   "Stops the sound on pin 8",
+   "Plays the sound twice",
+   "Plays a sound on pin 8"
+  ],
+  1,
+  "<code>noTone(pin)</code> stops the tone started by <code>tone()</code>."
+ ],
+ [
+  1,
+  "In <code>tone(8, 1000);</code>, what does the number <b>1000</b> represent?",
+  [
+   "The duration in seconds",
+   "The volume level",
+   "The pin number",
+   "The frequency in hertz (Hz)"
+  ],
+  3,
+  "The second argument of <code>tone()</code> is the frequency in Hz. A higher frequency gives a higher pitch."
+ ],
+ [
+  1,
+  "Which is the correct way to connect a piezo buzzer to Arduino pin 8?",
+  [
+   "Both legs to GND",
+   "Positive (+) leg to 5V, negative leg to pin 8",
+   "Positive (+) leg to GND, negative leg to 5V",
+   "Positive (+) leg to pin 8, negative (&minus;) leg to GND"
+  ],
+  3,
+  "The signal pin drives the + leg while the &minus; leg returns to GND."
+ ],
+ [
+  1,
+  "Which code makes the buzzer beep for 1 second, then stay silent for 1 second?",
+  [
+   "<code>tone(8,1000); delay(1000); noTone(8); delay(1000);</code>",
+   "<code>tone(8,1000); delay(1000); delay(1000);</code>",
+   "<code>tone(8); delay(1000); noTone(8,1000);</code>",
+   "<code>noTone(8); delay(1000); tone(8);</code>"
+  ],
+  0,
+  "Start the tone, wait, stop the tone, wait again."
+ ],
+ [
+  2,
+  "Which two pins of an I2C LCD module carry the data and the clock signals?",
+  [
+   "SDA and SCL",
+   "D6 and D7",
+   "TX and RX",
+   "MOSI and MISO"
+  ],
+  0,
+  "I2C uses only two signal wires: SDA (data) and SCL (clock). On an Arduino Uno these are A4 and A5."
+ ],
+ [
+  2,
+  "Which library is commonly included to control an I2C LCD?",
+  [
+   "<code>#include &lt;Wire.h&gt; only, no LCD library</code>",
+   "<code>#include &lt;Servo.h&gt;</code>",
+   "<code>#include &lt;Buzzer.h&gt;</code>",
+   "<code>#include &lt;LiquidCrystal_I2C.h&gt;</code>"
+  ],
+  3,
+  "<code>LiquidCrystal_I2C</code> provides the lcd functions such as print() and setCursor()."
+ ],
+ [
+  2,
+  "A 16x2 LCD can display up to how many characters at one time?",
+  [
+   "32 characters (16 per row, 2 rows)",
+   "16 characters",
+   "2 characters",
+   "64 characters"
+  ],
+  0,
+  "16 columns &times; 2 rows = 32 characters."
+ ],
+ [
+  2,
+  "In <code>LiquidCrystal_I2C lcd(0x27, 16, 2);</code>, what is <b>0x27</b>?",
+  [
+   "The brightness value",
+   "The number of columns",
+   "The Arduino pin number",
+   "The I2C address of the LCD"
+  ],
+  3,
+  "0x27 is the common I2C address (some modules use 0x3F). 16 and 2 are columns and rows."
+ ],
+ [
+  2,
+  "In <code>lcd.setCursor(a, b);</code>, what do <b>a</b> and <b>b</b> mean?",
+  [
+   "a = pin, b = address",
+   "a = column, b = row",
+   "a = row, b = column",
+   "a = width, b = height"
+  ],
+  1,
+  "The first value is the column (0&ndash;15), the second is the row (0 or 1)."
+ ],
+ [
+  2,
+  "Where will the text appear? <code>lcd.setCursor(5, 0); lcd.print(\"Hi\");</code>",
+  [
+   "Bottom row, starting at the 6th box",
+   "Bottom row, starting at the 1st box",
+   "Top row, starting at the 6th box",
+   "Top row, starting at the 5th row"
+  ],
+  2,
+  "Columns and rows start at 0, so column 5 is the 6th box and row 0 is the top row."
+ ],
+ [
+  2,
+  "Which code shows the text <b>Hello</b> on the LCD?",
+  [
+   "<code>lcd.print(\"Hello\");</code>",
+   "<code>lcd.text(\"Hello\");</code>",
+   "<code>lcd.write(Hello);</code>",
+   "<code>lcd.show(\"Hello\");</code>"
+  ],
+  0,
+  "<code>lcd.print()</code> prints text or numbers starting at the current cursor position."
+ ],
+ [
+  2,
+  "Which code displays <b>Robotics</b> at the start of the second line?",
+  [
+   "<code>lcd.setCursor(1, 0); lcd.print(\"Robotics\");</code>",
+   "<code>lcd.setCursor(0, 1); lcd.print(\"Robotics\");</code>",
+   "<code>lcd.setCursor(0, 2); lcd.print(\"Robotics\");</code>",
+   "<code>lcd.print(\"Robotics\", 0, 1);</code>"
+  ],
+  1,
+  "Column 0, row 1 is the first box of the second line."
+ ],
+ [
+  2,
+  "What does <code>lcd.clear();</code> do?",
+  [
+   "Only erases the second line",
+   "Turns off the backlight",
+   "Erases everything on the screen and returns the cursor to the top-left",
+   "Deletes the Arduino program"
+  ],
+  2,
+  "Use <code>lcd.clear()</code> before showing new text so old characters do not remain."
+ ],
+ [
+  2,
+  "Which statement turns ON the backlight of the I2C LCD?",
+  [
+   "<code>lcd.light(ON);</code>",
+   "<code>lcd.clear();</code>",
+   "<code>lcd.noBacklight();</code>",
+   "<code>lcd.backlight();</code>"
+  ],
+  3,
+  "<code>lcd.init()</code> starts the LCD, and <code>lcd.backlight()</code> turns the light on. <code>lcd.noBacklight()</code> turns it off."
+ ],
+ [
+  3,
+  "Which component rotates to a specific angle (usually 0&deg; to 180&deg;)?",
+  [
+   "Servo motor",
+   "I2C LCD",
+   "Push button",
+   "Piezo buzzer"
+  ],
+  0,
+  "A servo motor has built-in gears and position control, so it can hold a given angle."
+ ],
+ [
+  3,
+  "A standard servo has three wires. The red wire connects to what?",
+  [
+   "The signal pin",
+   "5V (power)",
+   "GND",
+   "SDA"
+  ],
+  1,
+  "Red = power (5V), brown/black = GND, orange/yellow = signal."
+ ],
+ [
+  3,
+  "Which library is needed to control a servo motor in Arduino?",
+  [
+   "<code>#include &lt;Motor.h&gt;</code>",
+   "<code>#include &lt;LiquidCrystal_I2C.h&gt;</code>",
+   "<code>#include &lt;Servo.h&gt;</code>",
+   "<code>#include &lt;Tone.h&gt;</code>"
+  ],
+  2,
+  "<code>Servo.h</code> comes with the Arduino IDE."
+ ],
+ [
+  3,
+  "What does <code>Servo myServo;</code> do?",
+  [
+   "Moves the servo to 90&deg;",
+   "Stops the servo",
+   "Creates a servo object named myServo",
+   "Connects the servo to pin 9"
+  ],
+  2,
+  "It only declares the object. You still need <code>attach()</code> to link it to a pin."
+ ],
+ [
+  3,
+  "What does <code>myServo.attach(9);</code> do?",
+  [
+   "Connects the servo object to pin 9, the signal pin",
+   "Waits for 9 seconds",
+   "Turns the servo off",
+   "Rotates the servo 9 degrees"
+  ],
+  0,
+  "<code>attach(pin)</code> tells Arduino which pin sends the control signal to the servo."
+ ],
+ [
+  3,
+  "What happens when you run <code>myServo.write(90);</code>?",
+  [
+   "The servo moves to 180&deg;",
+   "The servo spins for 90 seconds",
+   "The servo moves to 90&deg;, the center position",
+   "The servo moves 90 times"
+  ],
+  2,
+  "<code>write(angle)</code> sets the servo position in degrees."
+ ],
+ [
+  3,
+  "Which code turns a standard servo to its maximum angle?",
+  [
+   "<code>myServo.write(180);</code>",
+   "<code>myServo.attach(180);</code>",
+   "<code>myServo.write(0);</code>",
+   "<code>myServo.write(360);</code>"
+  ],
+  0,
+  "A standard servo works from 0&deg; to 180&deg;. <code>write(0)</code> is the minimum."
+ ],
+ [
+  3,
+  "What does this code do? <code>for(pos=0; pos&lt;=180; pos++){ myServo.write(pos); delay(15); }</code>",
+  [
+   "Prints 0 to 180 on the LCD",
+   "Slowly sweeps the servo from 0&deg; to 180&deg;",
+   "Plays a tone for 180 ms",
+   "Moves the servo to 180&deg; instantly"
+  ],
+  1,
+  "The loop increases the angle by 1&deg; every 15 ms, so the movement is smooth."
+ ],
+ [
+  3,
+  "Where is <code>myServo.attach(9);</code> usually placed in the sketch?",
+  [
+   "Before <code>#include</code>",
+   "Only at the end of <code>loop()</code>",
+   "Inside <code>setup()</code>",
+   "Inside <code>noTone()</code>"
+  ],
+  2,
+  "Attach once in <code>setup()</code>, then move the servo with <code>write()</code> in <code>loop()</code>."
+ ]
+];
+
+const $ = id => document.getElementById(id);
+const LETTERS = ["A","B","C","D"];
+let timeLimit = 60, idx = 0, left = 0, tick = null, answered = false;
+
+function showScreen(id){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  $(id).classList.add("active");
+}
+
+document.querySelectorAll("#timerChoices button").forEach(b=>{
+  b.onclick = () => {
+    document.querySelectorAll("#timerChoices button").forEach(x=>x.classList.remove("selected"));
+    b.classList.add("selected");
+    timeLimit = +b.dataset.s;
+  };
+});
+
+function startTimer(){
+  clearInterval(tick);
+  left = timeLimit;
+  const box = $("timerBox");
+  box.classList.remove("low","up");
+  $("timerLbl").textContent = "Time left";
+  const bar = $("timerBar");
+  bar.style.transition = "none"; bar.style.width = "100%";
+  void bar.offsetWidth;
+  bar.style.transition = "width 1s linear";
+  renderTime();
+  tick = setInterval(()=>{
+    left--;
+    renderTime();
+    bar.style.width = Math.max(0,(left/timeLimit)*100)+"%";
+    if(left<=0){ clearInterval(tick); timeUp(); }
+  },1000);
+}
+function renderTime(){
+  $("timerNum").textContent = left;
+  $("timerBox").classList.toggle("low", left<=10 && left>0);
+}
+function timeUp(){
+  const box = $("timerBox");
+  box.classList.remove("low"); box.classList.add("up");
+  $("timerLbl").textContent = "";
+  $("timerNum").textContent = "TIME'S UP!";
+  beep();
+}
+function beep(){
+  try{
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type="square"; o.frequency.value=520; o.connect(g); g.connect(ctx.destination);
+    g.gain.setValueAtTime(.15,ctx.currentTime);
+    o.start(); o.stop(ctx.currentTime+.5);
+  }catch(e){}
+}
+
+function loadQuestion(){
+  const [part,q,opts,ans] = Q[idx];
+  answered = false;
+  $("partTag").innerHTML = PARTS[part];
+  $("qNo").textContent = "Q" + (idx+1) + " / " + Q.length;
+  $("hdrMeta").textContent = "Question " + (idx+1) + " of " + Q.length + " \u2022 " + timeLimit + "s";
+  $("qText").innerHTML = q;
+  $("opts").innerHTML = opts.map((o,i)=>
+    `<div class="opt" data-i="${i}"><b>${LETTERS[i]}</b><span>${o}</span></div>`).join("");
+  const ex = $("explain"); ex.classList.remove("show"); ex.innerHTML = "";
+  $("btnShow").disabled = false;
+  $("btnNext").innerHTML = idx === Q.length-1 ? "Finish &raquo;" : "Next Question &raquo;";
+  startTimer();
+}
+
+function showAnswer(){
+  if(answered) return;
+  answered = true;
+  clearInterval(tick);
+  const ans = Q[idx][3];
+  document.querySelectorAll(".opt").forEach(el=>{
+    el.classList.add(+el.dataset.i===ans ? "correct" : "dim");
+  });
+  const ex = $("explain");
+  ex.innerHTML = `<strong>Answer: ${LETTERS[ans]}</strong> &mdash; ${Q[idx][4]}`;
+  ex.classList.add("show");
+  $("btnShow").disabled = true;
+}
+
+function nextQuestion(){
+  clearInterval(tick);
+  if(idx >= Q.length-1){ showScreen("screenEnd"); $("hdrMeta").textContent="Finished"; return; }
+  idx++;
+  loadQuestion();
+}
+
+$("btnStart").onclick = () => { idx = 0; showScreen("screenQuiz"); loadQuestion(); };
+$("btnShow").onclick = showAnswer;
+$("btnNext").onclick = nextQuestion;
+$("btnRestart").onclick = () => { showScreen("screenStart"); $("hdrMeta").textContent="Arduino \u2022 Robotics"; };
+
+document.addEventListener("keydown", e=>{
+  if(!$("screenQuiz").classList.contains("active")) return;
+  if(e.code==="Space"){ e.preventDefault(); answered ? nextQuestion() : showAnswer(); }
+  if(e.code==="ArrowRight") nextQuestion();
+});
+</script>
+</body>
+</html>
